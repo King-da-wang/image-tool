@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>即拍即剪</title>
+<title>拍</title>
 <style>
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   :root{
@@ -262,7 +262,7 @@
     }
     pending=null;edited=true;setMode('idle');fitView();render();updateLock();
     const r=await copyToClipboard();
-    if(r===true)toast('已应用并复制到粘贴板');else if(r==='download')toast('已应用，已触发下载保存');else toast('已应用，但复制失败','error');
+    if(r===true)toast('已应用并复制');else toast('已应用，但复制失败','error');
   }
   window.addEventListener('keydown',e=>{if(!pending)return;if(e.key==='Enter'){e.preventDefault();applyPending();}if(e.key==='Escape'){pending=null;setMode('idle');toast('已取消');}});
   setMode('idle');
