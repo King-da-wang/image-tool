@@ -1,26 +1,27 @@
+```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>即拍即剪</title>
- <link rel="apple-touch-icon" href="./icon.png">
-<link rel="icon" type="image/png" href="./icon.png">
-<meta name="theme-color" content="#171717">
+<!-- 单文件 · 零外部依赖 · 可离线使用：保存本 HTML 文件后，断网打开依然完整可用 -->
 <style>
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
   :root{
     --bg:#ffffff; --fg:#171717; --line:#e5e5e5; --hover:#f5f5f5;
-    --sub:#737373; --dot:#e7e7e7;
-    --primary-bg:#171717; --primary-fg:#ffffff; --primary-hover:#404040;
+    --sub:#737373; --dot:#e7e7e7; --accent:#2563eb;
+    --primary-bg:#171717; --primary-fg:#ffffff;
   }
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#000000; --fg:#fafafa; --line:#262626; --hover:#171717;
-      --sub:#a3a3a3; --dot:#1c1c1c;
-      --primary-bg:#fafafa; --primary-fg:#0a0a0a; --primary-hover:#d4d4d4;
+      --sub:#a3a3a3; --dot:#1c1c1c; --accent:#3b82f6;
+      --primary-bg:#fafafa; --primary-fg:#0a0a0a;
     }
   }
+
   html,body{ height:100%; }
   body{
     font-family:-apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -29,19 +30,27 @@
     overflow-y:auto;
   }
   button{ font-family:inherit; color:inherit; }
+
   .app{
-    height:100vh; height:100dvh; max-width:56rem; margin:0 auto;
+    height:100vh;
+    height:100dvh;
+    max-width:56rem; margin:0 auto;
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex; flex-direction:column;
   }
+
   .stage{
-    flex:1; min-height:200px; position:relative;
+    flex:1; min-height:200px;
+    position:relative;
     border:1px solid var(--line); border-radius:14px; overflow:hidden;
     background-image:radial-gradient(var(--dot) 1px, transparent 1px);
     background-size:16px 16px;
+    touch-action:none;
   }
   .stage-inner{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:14px;
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:14px;
   }
   #viewCanvas{
     display:none; max-width:100%; max-height:100%;
@@ -49,16 +58,22 @@
     touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
   }
   #viewCanvas.show{ display:block; }
+
+  /* 确认条：独立占位（不遮挡照片），高度恒定（按钮不跳动） */
+  .confirm-slot{
+    flex:none; height:46px; margin-top:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
   .confirm-bar{
-    position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
     display:none; align-items:center; gap:8px; white-space:nowrap;
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
     padding:6px 6px 6px 14px; box-shadow:0 4px 16px rgba(0,0,0,.08);
+    max-width:100%;
   }
   .confirm-bar.show{ display:flex; }
   #pendingLabel{ font-size:12px; color:var(--sub); }
   .mini-primary{
-    height:32px; padding:0 14px; border:none; border-radius:8px; cursor:pointer;
+    height:32px; padding:0 16px; border:none; border-radius:8px; cursor:pointer;
     background:var(--primary-bg); color:var(--primary-fg); font-size:12px; font-weight:600;
   }
   .mini-ghost{
@@ -66,7 +81,9 @@
     background:transparent; font-size:12px; cursor:pointer;
   }
   .mini-ghost:hover{ background:var(--hover); }
-  .controls{ flex:none; margin-top:16px; }
+
+  .controls{ flex:none; margin-top:10px; }
+
   .grid{
     display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
     max-width:28rem; margin:0 auto 14px;
@@ -81,6 +98,7 @@
   .cell:active{ opacity:.8; }
   .cell svg{ width:20px; height:20px; }
   .cell.active{ background:var(--primary-bg); color:var(--primary-fg); border-color:var(--primary-bg); }
+
   .primary{
     width:100%; height:48px; border:none; border-radius:12px; cursor:pointer;
     background:var(--primary-bg); color:var(--primary-fg);
@@ -90,7 +108,9 @@
   }
   .primary:active{ opacity:.8; }
   .primary svg{ width:20px; height:20px; }
+
   .locked{ opacity:.3; pointer-events:none; transition:opacity .2s; }
+
   #toast{
     position:fixed; left:50%; top:50%;
     transform:translate(-50%,-50%) scale(.95); opacity:0; pointer-events:none;
@@ -101,23 +121,33 @@
   }
   #toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
   #toast.error{ color:#dc2626; border-color:#fecaca; }
-  @media (prefers-color-scheme: dark){ #toast.error{ color:#f87171; border-color:#7f1d1d; } }
+  @media (prefers-color-scheme: dark){
+    #toast.error{ color:#f87171; border-color:#7f1d1d; }
+  }
 </style>
 </head>
 <body>
+
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 <input type="file" id="albumInput" accept="image/*" style="display:none">
+
 <main class="app">
-  <section class="stage">
+
+  <section class="stage" id="stageEl">
     <div class="stage-inner">
       <canvas id="viewCanvas"></canvas>
     </div>
+  </section>
+
+  <!-- 确认条（独立占位，不遮挡照片） -->
+  <div class="confirm-slot">
     <div id="confirmBar" class="confirm-bar">
       <span id="pendingLabel"></span>
       <button id="applyBtn" class="mini-primary">应用</button>
       <button id="cancelBtn" class="mini-ghost">取消</button>
     </div>
-  </section>
+  </div>
+
   <div class="controls">
     <div id="toolRow" class="grid">
       <button data-tool="crop" class="cell">
@@ -145,42 +175,76 @@
         上传
       </button>
     </div>
+
     <button id="copyBtn" class="primary">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 12 2 2 4-4"/></svg>
       复制/保存到相册
     </button>
   </div>
 </main>
+
 <div id="toast"></div>
+
 <script>
 (function(){
   const $ = id => document.getElementById(id);
+  const stageEl = $('stageEl');
   const viewCanvas = $('viewCanvas'), vctx = viewCanvas.getContext('2d');
-  const imgCanvas = document.createElement('canvas');   
-  let originalCanvas = null;                            
+  const imgCanvas = document.createElement('canvas');
+  let originalCanvas = null;
   let hasImage = false, edited = false;
-  let mode = 'idle';       
-  let pending = null;      
-  let drawing = false, startPt = null, antsOffset = 0;
+  let mode = 'idle';       // idle | crop | lasso
+  let pending = null;      // {type:'crop',x,y,w,h} | {type:'lasso',points:[]}
+  let drawing = false, dragState = null, startPt = null, antsOffset = 0;
 
+  const ACTION_BTNS = ['rotateBtn','resetBtn','copyBtn','gridCameraBtn','gridAlbumBtn'];
+
+  const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+  function minCrop(){ return Math.max(8, Math.min(imgCanvas.width, imgCanvas.height) * 0.05); }
+  function cssScale(){ // 图像像素 / CSS 像素
+    const r = viewCanvas.getBoundingClientRect();
+    return r.width ? imgCanvas.width / r.width : 1;
+  }
+  function insideRect(p, r){ return p.x>=r.x && p.x<=r.x+r.w && p.y>=r.y && p.y<=r.y+r.h; }
+
+  /* 裁切框命中：四个角 + 四条边（整条边可拖）+ 框内移动 */
+  function hitCrop(p){
+    if(!pending || pending.type !== 'crop') return null;
+    const th = 28 * cssScale();
+    const l = pending.x, t = pending.y, r = pending.x + pending.w, b = pending.y + pending.h;
+    const nearL = Math.abs(p.x-l) <= th, nearR = Math.abs(p.x-r) <= th;
+    const nearT = Math.abs(p.y-t) <= th, nearB = Math.abs(p.y-b) <= th;
+    const inXs = p.x >= l && p.x <= r, inYs = p.y >= t && p.y <= b;
+    if(nearL && nearT) return 'nw';
+    if(nearR && nearT) return 'ne';
+    if(nearL && nearB) return 'sw';
+    if(nearR && nearB) return 'se';
+    if(nearL && inYs) return 'w';
+    if(nearR && inYs) return 'e';
+    if(nearT && inXs) return 'n';
+    if(nearB && inXs) return 's';
+    if(insideRect(p, pending)) return 'move';
+    return null;
+  }
+
+  /* ---------- 提示气泡（照片中央） ---------- */
   function toast(msg, type){
     const t = $('toast');
     t.textContent = msg;
     t.classList.toggle('error', type === 'error');
     if(hasImage){
-      const r = viewCanvas.getBoundingClientRect();   
+      const r = viewCanvas.getBoundingClientRect();
       t.style.left = (r.left + r.width / 2) + 'px';
       t.style.top  = (r.top  + r.height / 2) + 'px';
-    } else {
-      t.style.left = '50%'; t.style.top  = '50%';
-    }
+    } else { t.style.left = '50%'; t.style.top = '50%'; }
     t.classList.add('show');
     clearTimeout(t._tm);
     t._tm = setTimeout(()=> t.classList.remove('show'), 2200);
   }
 
-  $('gridCameraBtn').onclick = () => $('cameraInput').click();
-  $('gridAlbumBtn').onclick  = () => $('albumInput').click();
+  /* ---------- 图片来源 ---------- */
+  $('gridCameraBtn').onclick = () => { if(!pending) $('cameraInput').click(); };
+  $('gridAlbumBtn').onclick  = () => { if(!pending) $('albumInput').click(); };
   $('cameraInput').addEventListener('change', e => { const f = e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
   $('albumInput').addEventListener('change',  e => { const f = e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
 
@@ -202,9 +266,9 @@
       w = Math.max(1, Math.round(w*sc)); h = Math.max(1, Math.round(h*sc));
       imgCanvas.width = w; imgCanvas.height = h;
       imgCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      originalCanvas = cloneCanvas(imgCanvas);   
+      originalCanvas = cloneCanvas(imgCanvas);
       URL.revokeObjectURL(url);
-      hasImage = true; edited = false; pending = null; drawing = false;
+      hasImage = true; edited = false; pending = null; drawing = false; dragState = null;
       viewCanvas.classList.add('show');
       setMode('idle'); fitView(); render(); updateLock();
       toast('图片已载入');
@@ -213,6 +277,7 @@
     img.src = url;
   }
 
+  /* ---------- 视图 ---------- */
   function fitView(){
     const MAXV = 1600;
     const s = Math.min(1, MAXV / Math.max(imgCanvas.width, imgCanvas.height));
@@ -221,22 +286,28 @@
   }
   function setMode(m){
     mode = m;
+    if(m !== 'crop'  && pending && pending.type === 'crop')  pending = null;
+    if(m !== 'lasso' && pending && pending.type === 'lasso') pending = null;
+    if(m === 'crop' && hasImage && !pending){
+      pending = { type:'crop', x:0, y:0, w:imgCanvas.width, h:imgCanvas.height };
+    }
     document.querySelectorAll('.cell[data-tool]').forEach(b =>
       b.classList.toggle('active', b.dataset.tool === m));
-    viewCanvas.style.cursor = m === 'idle' ? 'default' : 'crosshair';
+    viewCanvas.style.cursor = m === 'lasso' ? 'crosshair' : 'default';
+    updateLock(); render();
   }
   function updateLock(){
-    const on = !!pending && !drawing;
-    $('toolRow').classList.toggle('locked', on);
-    $('copyBtn').classList.toggle('locked', on);
+    const on = !!pending;
+    ACTION_BTNS.forEach(id => $(id).classList.toggle('locked', on));
     $('confirmBar').classList.toggle('show', on);
     if(on){
       $('pendingLabel').textContent = pending.type === 'crop'
-        ? '已框选 ' + pending.w + ' × ' + pending.h + ' px'
-        : '已圈选 ' + pending.points.length + ' 个点位';
+        ? Math.round(pending.w) + ' × ' + Math.round(pending.h)
+        : '已圈选 ' + pending.points.length + ' 点';
     }
   }
 
+  /* ---------- 渲染 ---------- */
   function render(){
     if(!hasImage) return;
     const W = viewCanvas.width, H = viewCanvas.height;
@@ -247,32 +318,53 @@
   }
   function drawCropOverlay(){
     const s = viewCanvas.width / imgCanvas.width;
+    const fc = cssScale() * s;               // CSS 像素 → 视图画布像素
     const W = viewCanvas.width, H = viewCanvas.height;
     const vx = pending.x*s, vy = pending.y*s, vw = pending.w*s, vh = pending.h*s;
+
+    // 框外压暗
     vctx.save();
     vctx.fillStyle = 'rgba(0,0,0,.55)'; vctx.fillRect(0,0,W,H);
     vctx.beginPath(); vctx.rect(vx,vy,vw,vh); vctx.clip();
     vctx.drawImage(imgCanvas,0,0,W,H);
     vctx.restore();
+
+    // 三分线
     vctx.save();
-    vctx.strokeStyle = 'rgba(255,255,255,.3)';
-    vctx.lineWidth = Math.max(1, s);
+    vctx.strokeStyle = 'rgba(255,255,255,.35)';
+    vctx.lineWidth = Math.max(1, fc);
     vctx.beginPath();
     for(let i=1;i<3;i++){
       vctx.moveTo(vx+vw*i/3, vy); vctx.lineTo(vx+vw*i/3, vy+vh);
       vctx.moveTo(vx, vy+vh*i/3); vctx.lineTo(vx+vw, vy+vh*i/3);
     }
     vctx.stroke();
-    vctx.strokeStyle = '#3b82f6';
-    vctx.lineWidth = Math.max(2, W/500);
-    vctx.setLineDash([10,6]); vctx.lineDashOffset = antsOffset;
+    vctx.restore();
+
+    // 粗边框：白描边 + 蓝色主边，清晰可见
+    vctx.save();
+    vctx.strokeStyle = 'rgba(255,255,255,.95)';
+    vctx.lineWidth = 4.5*fc;
     vctx.strokeRect(vx,vy,vw,vh);
-    vctx.setLineDash([]);
-    const hs = Math.max(8, W/130);
-    vctx.fillStyle = '#3b82f6';
-    [[vx,vy],[vx+vw,vy],[vx,vy+vh],[vx+vw,vy+vh]].forEach(c => {
-      vctx.fillRect(c[0]-hs/2, c[1]-hs/2, hs, hs);
-    });
+    vctx.strokeStyle = '#2563eb';
+    vctx.lineWidth = 2.5*fc;
+    vctx.strokeRect(vx,vy,vw,vh);
+    vctx.restore();
+
+    // 8 个大手柄：白底蓝边方块
+    const hs = 16*fc;
+    const pts = { nw:[vx,vy], n:[vx+vw/2,vy], ne:[vx+vw,vy],
+                  w:[vx,vy+vh/2], e:[vx+vw,vy+vh/2],
+                  sw:[vx,vy+vh], s:[vx+vw/2,vy+vh], se:[vx+vw,vy+vh] };
+    vctx.save();
+    for(const k in pts){
+      const cx = pts[k][0], cy = pts[k][1];
+      vctx.fillStyle = '#ffffff';
+      vctx.fillRect(cx-hs/2, cy-hs/2, hs, hs);
+      vctx.strokeStyle = '#2563eb';
+      vctx.lineWidth = 2*fc;
+      vctx.strokeRect(cx-hs/2, cy-hs/2, hs, hs);
+    }
     vctx.restore();
   }
   function drawLassoOverlay(){
@@ -291,70 +383,109 @@
     vctx.restore();
     vctx.save();
     tracePath();
-    vctx.strokeStyle = '#3b82f6';
-    vctx.lineWidth = Math.max(2, W/500);
+    vctx.strokeStyle = '#2563eb';
+    vctx.lineWidth = Math.max(2.5, W/400);
     vctx.setLineDash([10,6]); vctx.lineDashOffset = antsOffset;
     vctx.stroke();
     vctx.restore();
   }
   (function tick(){
-    if(pending){ antsOffset -= .6; render(); }
+    if(pending && pending.type === 'lasso'){ antsOffset -= .6; render(); }
     requestAnimationFrame(tick);
   })();
 
+  /* ---------- 指针交互（绑定在 stage 上，边缘触摸也有效） ---------- */
   function toImg(e){
     const r = viewCanvas.getBoundingClientRect();
     return {
-      x: Math.min(imgCanvas.width,  Math.max(0, (e.clientX - r.left) * imgCanvas.width  / r.width)),
-      y: Math.min(imgCanvas.height, Math.max(0, (e.clientY - r.top)  * imgCanvas.height / r.height))
+      x: clamp((e.clientX - r.left) * imgCanvas.width  / r.width,  0, imgCanvas.width),
+      y: clamp((e.clientY - r.top)  * imgCanvas.height / r.height, 0, imgCanvas.height)
     };
   }
-  viewCanvas.addEventListener('pointerdown', e => {
-    if(!hasImage || mode === 'idle' || drawing || pending) return;
-    e.preventDefault();
-    viewCanvas.setPointerCapture(e.pointerId);
-    drawing = true; startPt = toImg(e);
-    pending = mode === 'crop'
-      ? { type:'crop', x:startPt.x, y:startPt.y, w:0, h:0 }
-      : { type:'lasso', points:[startPt] };
-  });
-  viewCanvas.addEventListener('pointermove', e => {
-    if(!drawing || !pending) return;
-    e.preventDefault();
+
+  stageEl.addEventListener('pointerdown', e => {
+    if(!hasImage || mode === 'idle') return;
     const p = toImg(e);
-    if(pending.type === 'crop'){
-      pending = { type:'crop',
-        x: Math.min(startPt.x, p.x), y: Math.min(startPt.y, p.y),
-        w: Math.abs(p.x - startPt.x), h: Math.abs(p.y - startPt.y) };
-    } else {
+
+    if(mode === 'crop'){
+      const hit = hitCrop(p);
+      if(!hit) return;
+      e.preventDefault();
+      stageEl.setPointerCapture(e.pointerId);
+      drawing = true;
+      dragState = hit === 'move'
+        ? { kind:'move', dx:p.x - pending.x, dy:p.y - pending.y }
+        : { kind:'resize', handle:hit };
+    } else { // lasso
+      if(pending) return;
+      e.preventDefault();
+      stageEl.setPointerCapture(e.pointerId);
+      drawing = true; startPt = p;
+      pending = { type:'lasso', points:[startPt] };
+      updateLock();
+    }
+  });
+
+  stageEl.addEventListener('pointermove', e => {
+    const p = toImg(e);
+
+    if(!drawing){
+      if(mode === 'crop' && pending){
+        const hit = hitCrop(p);
+        const cur = { nw:'nwse-resize', se:'nwse-resize', ne:'nesw-resize', sw:'nesw-resize',
+                      n:'ns-resize', s:'ns-resize', e:'ew-resize', w:'ew-resize', move:'move' };
+        viewCanvas.style.cursor = hit ? cur[hit] : 'default';
+      }
+      return;
+    }
+    e.preventDefault();
+
+    if(mode === 'crop' && dragState && pending){
+      const W = imgCanvas.width, H = imgCanvas.height, min = minCrop();
+      if(dragState.kind === 'move'){
+        pending = { type:'crop', w:pending.w, h:pending.h,
+          x: clamp(p.x - dragState.dx, 0, W - pending.w),
+          y: clamp(p.y - dragState.dy, 0, H - pending.h) };
+      } else {
+        let l = pending.x, t = pending.y, r = pending.x + pending.w, b = pending.y + pending.h;
+        const hd = dragState.handle;
+        if(hd.includes('w')) l = clamp(p.x, 0, r - min);
+        if(hd.includes('e')) r = clamp(p.x, l + min, W);
+        if(hd.includes('n')) t = clamp(p.y, 0, b - min);
+        if(hd.includes('s')) b = clamp(p.y, t + min, H);
+        pending = { type:'crop', x:l, y:t, w:r-l, h:b-t };
+      }
+      render(); updateLock();
+    }
+    else if(mode === 'lasso' && pending){
       const last = pending.points[pending.points.length-1];
       const th = Math.max(2, imgCanvas.width / 500);
       if(Math.hypot(p.x-last.x, p.y-last.y) > th) pending.points.push(p);
+      render();
     }
-    render();
   });
+
   function endDraw(){
     if(!drawing) return;
-    drawing = false;
-    if(pending && pending.type === 'crop' && (pending.w < 8 || pending.h < 8)){
-      pending = null; toast('选区太小，请重新框选','error');
-    }
-    if(pending && pending.type === 'lasso' && pending.points.length < 6){
-      pending = null; toast('圈选范围太小，请重新圈选','error');
-    }
+    drawing = false; dragState = null;
     if(pending && pending.type === 'crop'){
       pending = { type:'crop',
         x: Math.round(pending.x), y: Math.round(pending.y),
         w: Math.round(pending.w), h: Math.round(pending.h) };
     }
+    if(pending && pending.type === 'lasso' && pending.points.length < 6){
+      pending = null;
+      toast('圈选范围太小，请重新圈选','error');
+    }
     render(); updateLock();
   }
-  viewCanvas.addEventListener('pointerup', endDraw);
-  viewCanvas.addEventListener('pointercancel', endDraw);
-  viewCanvas.addEventListener('contextmenu', e => e.preventDefault());
+  stageEl.addEventListener('pointerup', endDraw);
+  stageEl.addEventListener('pointercancel', endDraw);
+  stageEl.addEventListener('contextmenu', e => e.preventDefault());
 
+  /* ---------- 复制 / 保存 ---------- */
   $('copyBtn').addEventListener('click', async () => {
-    if(!hasImage) return;
+    if(!hasImage || pending) return;
     try{
       if(!navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('unsupported');
       await navigator.clipboard.write([ new ClipboardItem({
@@ -374,9 +505,10 @@
     }
   });
 
+  /* ---------- 工具 ---------- */
   document.querySelectorAll('.cell[data-tool]').forEach(btn => {
     btn.addEventListener('click', () => {
-      if(pending || !hasImage) return;
+      if(!hasImage) return;
       const t = btn.dataset.tool;
       setMode(mode === t ? 'idle' : t);
     });
@@ -387,81 +519,3 @@
     const w = imgCanvas.width, h = imgCanvas.height;
     const c = document.createElement('canvas');
     c.width = h; c.height = w;
-    const ctx = c.getContext('2d');
-    ctx.translate(0, w);
-    ctx.rotate(-Math.PI / 2);
-    ctx.drawImage(imgCanvas, 0, 0);
-    imgCanvas.width = c.width; imgCanvas.height = c.height;
-    imgCanvas.getContext('2d').drawImage(c, 0, 0);
-    edited = true;
-    fitView(); render();
-    toast('已逆时针旋转 90°');
-  });
-
-  $('resetBtn').addEventListener('click', () => {
-    if(!hasImage || pending) return;
-    if(!edited || !originalCanvas){ toast('当前已是原图'); return; }
-    imgCanvas.width = originalCanvas.width;
-    imgCanvas.height = originalCanvas.height;
-    imgCanvas.getContext('2d').drawImage(originalCanvas, 0, 0);
-    edited = false;
-    setMode('idle'); fitView(); render();
-    toast('已复原，所有编辑效果已清除');
-  });
-
-  $('applyBtn').addEventListener('click', applyPending);
-  $('cancelBtn').addEventListener('click', () => {
-    pending = null; updateLock(); render(); toast('已取消选区，可重新操作');
-  });
-
-  function applyPending(){
-    if(!pending) return;
-    if(pending.type === 'crop'){
-      const x = pending.x, y = pending.y;
-      const w = Math.max(1, Math.min(pending.w, imgCanvas.width - x));
-      const h = Math.max(1, Math.min(pending.h, imgCanvas.height - y));
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      c.getContext('2d').drawImage(imgCanvas, x, y, w, h, 0, 0, w, h);
-      imgCanvas.width = w; imgCanvas.height = h;
-      imgCanvas.getContext('2d').drawImage(c, 0, 0);
-    } else {
-      const c = document.createElement('canvas');
-      c.width = imgCanvas.width; c.height = imgCanvas.height;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#ffffff';                 
-      ctx.fillRect(0, 0, c.width, c.height);
-      ctx.save();
-      ctx.beginPath();
-      pending.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
-      ctx.closePath(); ctx.clip();
-      ctx.drawImage(imgCanvas, 0, 0);            
-      ctx.restore();
-      imgCanvas.width = c.width; imgCanvas.height = c.height;
-      imgCanvas.getContext('2d').drawImage(c, 0, 0);
-    }
-    pending = null; edited = true;
-    setMode('idle'); fitView(); render(); updateLock();
-    toast('已应用');
-  }
-
-  window.addEventListener('keydown', e => {
-    if(!pending) return;
-    if(e.key === 'Enter'){ e.preventDefault(); applyPending(); }
-    if(e.key === 'Escape'){ pending = null; updateLock(); render(); toast('已取消选区'); }
-  });
-
-  setMode('idle');
-})();
-</script>
-
-<!-- 【新增】离线缓存 Service Worker 注册逻辑 -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
-  }
-</script>
-</body>
-</html>
