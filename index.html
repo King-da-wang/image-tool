@@ -231,13 +231,14 @@
   stageEl.addEventListener('pointercancel',endDraw);
   stageEl.addEventListener('contextmenu',e=>e.preventDefault());
   document.querySelectorAll('.cell[data-tool]').forEach(btn=>{btn.addEventListener('click',()=>{if(!hasImage)return;setMode(mode===btn.dataset.tool?'idle':btn.dataset.tool);});});
-  $('rotateBtn').addEventListener('click',async()=>{
+  /* 旋转：只旋转，不复制 */
+  $('rotateBtn').addEventListener('click',()=>{
     if(!hasImage||pending)return;
     const w=imgCanvas.width,h=imgCanvas.height,c=document.createElement('canvas');c.width=h;c.height=w;
     const ctx=c.getContext('2d');ctx.translate(0,w);ctx.rotate(-Math.PI/2);ctx.drawImage(imgCanvas,0,0);
     imgCanvas.width=c.width;imgCanvas.height=c.height;imgCanvas.getContext('2d').drawImage(c,0,0);
     edited=true;fitView();render();
-    const r=await copyToClipboard();toast(r===true?'已旋转并复制':r==='download'?'已旋转，已触发下载':'已旋转，复制失败',r===false?'error':undefined);
+    toast('已逆时针旋转 90°');
   });
   $('resetBtn').addEventListener('click',()=>{
     if(!hasImage||pending)return;if(!edited||!originalCanvas){toast('当前已是原图');return;}
@@ -246,6 +247,7 @@
   });
   $('applyBtn').addEventListener('click',applyPending);
   $('cancelBtn').addEventListener('click',()=>{pending=null;setMode('idle');toast('已取消');});
+  /* 应用（裁切/圈选）后才复制到粘贴板 */
   async function applyPending(){
     if(!pending)return;
     if(pending.type==='crop'){
