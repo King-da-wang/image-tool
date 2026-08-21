@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -59,7 +58,6 @@
   }
   #viewCanvas.show{ display:block; }
 
-  /* 确认条：独立占位（不遮挡照片），高度恒定（按钮不跳动） */
   .confirm-slot{
     flex:none; height:46px; margin-top:12px;
     display:flex; align-items:center; justify-content:center;
@@ -139,7 +137,6 @@
     </div>
   </section>
 
-  <!-- 确认条（独立占位，不遮挡照片） -->
   <div class="confirm-slot">
     <div id="confirmBar" class="confirm-bar">
       <span id="pendingLabel"></span>
@@ -184,7 +181,6 @@
 </main>
 
 <div id="toast"></div>
-
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -193,21 +189,20 @@
   const imgCanvas = document.createElement('canvas');
   let originalCanvas = null;
   let hasImage = false, edited = false;
-  let mode = 'idle';       // idle | crop | lasso
-  let pending = null;      // {type:'crop',x,y,w,h} | {type:'lasso',points:[]}
+  let mode = 'idle';
+  let pending = null;
   let drawing = false, dragState = null, startPt = null, antsOffset = 0;
 
   const ACTION_BTNS = ['rotateBtn','resetBtn','copyBtn','gridCameraBtn','gridAlbumBtn'];
 
   const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
   function minCrop(){ return Math.max(8, Math.min(imgCanvas.width, imgCanvas.height) * 0.05); }
-  function cssScale(){ // 图像像素 / CSS 像素
+  function cssScale(){
     const r = viewCanvas.getBoundingClientRect();
     return r.width ? imgCanvas.width / r.width : 1;
   }
   function insideRect(p, r){ return p.x>=r.x && p.x<=r.x+r.w && p.y>=r.y && p.y<=r.y+r.h; }
 
-  /* 裁切框命中：四个角 + 四条边（整条边可拖）+ 框内移动 */
   function hitCrop(p){
     if(!pending || pending.type !== 'crop') return null;
     const th = 28 * cssScale();
@@ -227,7 +222,6 @@
     return null;
   }
 
-  /* ---------- 提示气泡（照片中央） ---------- */
   function toast(msg, type){
     const t = $('toast');
     t.textContent = msg;
@@ -242,7 +236,6 @@
     t._tm = setTimeout(()=> t.classList.remove('show'), 2200);
   }
 
-  /* ---------- 图片来源 ---------- */
   $('gridCameraBtn').onclick = () => { if(!pending) $('cameraInput').click(); };
   $('gridAlbumBtn').onclick  = () => { if(!pending) $('albumInput').click(); };
   $('cameraInput').addEventListener('change', e => { const f = e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
@@ -277,7 +270,6 @@
     img.src = url;
   }
 
-  /* ---------- 视图 ---------- */
   function fitView(){
     const MAXV = 1600;
     const s = Math.min(1, MAXV / Math.max(imgCanvas.width, imgCanvas.height));
@@ -307,7 +299,6 @@
     }
   }
 
-  /* ---------- 渲染 ---------- */
   function render(){
     if(!hasImage) return;
     const W = viewCanvas.width, H = viewCanvas.height;
@@ -318,18 +309,16 @@
   }
   function drawCropOverlay(){
     const s = viewCanvas.width / imgCanvas.width;
-    const fc = cssScale() * s;               // CSS 像素 → 视图画布像素
+    const fc = cssScale() * s;
     const W = viewCanvas.width, H = viewCanvas.height;
     const vx = pending.x*s, vy = pending.y*s, vw = pending.w*s, vh = pending.h*s;
 
-    // 框外压暗
     vctx.save();
     vctx.fillStyle = 'rgba(0,0,0,.55)'; vctx.fillRect(0,0,W,H);
     vctx.beginPath(); vctx.rect(vx,vy,vw,vh); vctx.clip();
     vctx.drawImage(imgCanvas,0,0,W,H);
     vctx.restore();
 
-    // 三分线
     vctx.save();
     vctx.strokeStyle = 'rgba(255,255,255,.35)';
     vctx.lineWidth = Math.max(1, fc);
@@ -341,7 +330,6 @@
     vctx.stroke();
     vctx.restore();
 
-    // 粗边框：白描边 + 蓝色主边，清晰可见
     vctx.save();
     vctx.strokeStyle = 'rgba(255,255,255,.95)';
     vctx.lineWidth = 4.5*fc;
@@ -351,7 +339,6 @@
     vctx.strokeRect(vx,vy,vw,vh);
     vctx.restore();
 
-    // 8 个大手柄：白底蓝边方块
     const hs = 16*fc;
     const pts = { nw:[vx,vy], n:[vx+vw/2,vy], ne:[vx+vw,vy],
                   w:[vx,vy+vh/2], e:[vx+vw,vy+vh/2],
@@ -394,7 +381,6 @@
     requestAnimationFrame(tick);
   })();
 
-  /* ---------- 指针交互（绑定在 stage 上，边缘触摸也有效） ---------- */
   function toImg(e){
     const r = viewCanvas.getBoundingClientRect();
     return {
@@ -416,7 +402,7 @@
       dragState = hit === 'move'
         ? { kind:'move', dx:p.x - pending.x, dy:p.y - pending.y }
         : { kind:'resize', handle:hit };
-    } else { // lasso
+    } else {
       if(pending) return;
       e.preventDefault();
       stageEl.setPointerCapture(e.pointerId);
@@ -483,7 +469,6 @@
   stageEl.addEventListener('pointercancel', endDraw);
   stageEl.addEventListener('contextmenu', e => e.preventDefault());
 
-  /* ---------- 复制 / 保存 ---------- */
   $('copyBtn').addEventListener('click', async () => {
     if(!hasImage || pending) return;
     try{
@@ -505,7 +490,6 @@
     }
   });
 
-  /* ---------- 工具 ---------- */
   document.querySelectorAll('.cell[data-tool]').forEach(btn => {
     btn.addEventListener('click', () => {
       if(!hasImage) return;
@@ -519,3 +503,74 @@
     const w = imgCanvas.width, h = imgCanvas.height;
     const c = document.createElement('canvas');
     c.width = h; c.height = w;
+    const ctx = c.getContext('2d');
+    ctx.translate(0, w);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(imgCanvas, 0, 0);
+    imgCanvas.width = c.width; imgCanvas.height = c.height;
+    imgCanvas.getContext('2d').drawImage(c, 0, 0);
+    edited = true;
+    fitView(); render();
+    toast('已逆时针旋转 90°');
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    if(!hasImage || pending) return;
+    if(!edited || !originalCanvas){ toast('当前已是原图'); return; }
+    imgCanvas.width = originalCanvas.width;
+    imgCanvas.height = originalCanvas.height;
+    imgCanvas.getContext('2d').drawImage(originalCanvas, 0, 0);
+    edited = false;
+    setMode('idle'); fitView(); render();
+    toast('已复原，所有编辑效果已清除');
+  });
+
+  $('applyBtn').addEventListener('click', applyPending);
+  $('cancelBtn').addEventListener('click', () => {
+    pending = null;
+    setMode('idle');
+    toast('已取消');
+  });
+
+  function applyPending(){
+    if(!pending) return;
+    if(pending.type === 'crop'){
+      const x = pending.x, y = pending.y;
+      const w = Math.max(1, Math.min(pending.w, imgCanvas.width - x));
+      const h = Math.max(1, Math.min(pending.h, imgCanvas.height - y));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(imgCanvas, x, y, w, h, 0, 0, w, h);
+      imgCanvas.width = w; imgCanvas.height = h;
+      imgCanvas.getContext('2d').drawImage(c, 0, 0);
+    } else {
+      const c = document.createElement('canvas');
+      c.width = imgCanvas.width; c.height = imgCanvas.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.save();
+      ctx.beginPath();
+      pending.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
+      ctx.closePath(); ctx.clip();
+      ctx.drawImage(imgCanvas, 0, 0);
+      ctx.restore();
+      imgCanvas.width = c.width; imgCanvas.height = c.height;
+      imgCanvas.getContext('2d').drawImage(c, 0, 0);
+    }
+    pending = null; edited = true;
+    setMode('idle'); fitView(); render(); updateLock();
+    toast('已应用');
+  }
+
+  window.addEventListener('keydown', e => {
+    if(!pending) return;
+    if(e.key === 'Enter'){ e.preventDefault(); applyPending(); }
+    if(e.key === 'Escape'){ pending = null; setMode('idle'); toast('已取消'); }
+  });
+
+  setMode('idle');
+})();
+</script>
+</body>
+</html>
