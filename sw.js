@@ -1,4 +1,4 @@
-const CACHE_NAME = 'image-tool-v6';
+const CACHE_NAME = 'image-tool-v7';
 const urlsToCache = [
   './',
   './index.html',
